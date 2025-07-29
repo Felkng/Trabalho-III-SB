@@ -1,5 +1,5 @@
 .section .data
-
+nome_arquivo: .string "ola mundo.txt"
 .section .bss
 
 # CHAMADAS DE SISTEMA
@@ -11,16 +11,27 @@
 .equ SYS_CREATE, 85 # abre ou cria arquivo / rdi = endereço de NULL terminado com o nome do arquivo / rsi = flags de modo de arquivo
 .equ SYS_LSEEK, 8 # reposiciona ponteiro para ler/escrever no arquivo / rdi = file descriptor / rsi = offset / rdx = origem
 
-# PERMISSÕES DE ARQUIVO
-.equ O_CREATE, 64 # se o arquivo não existe cria uma versão truncada (vazia) dele (Read only)
-.equ O_TRUNC, 512 # se o arquivo já existe, trunca ele (write only) 
-.equ APPEND, 1024 # antes da operação de escrita, coloca o ponteiro no final do arquivo (Read/Write)
+# PERMISSÕES DE ARQUIVO E FLAGS DE MODO
+.equ O_RDONLY, 0        # somente leitura
+.equ O_WRONLY, 1        # somente escrita
+.equ O_RDWR, 2          # leitura e escrita
+.equ O_CREAT, 64        # criar o arquivo se ele não existir
+.equ O_TRUNC, 512       # truncar o arquivo para tamanho 0 se ele existir
+.equ O_APPEND, 1024     # anexar dados ao final do arquivo
 
+# PERMISSÕES O_CREAT
+.equ S_IRUSR, 0400      # permissão de leitura para o proprietário
+.equ S_IWUSR, 0200      # permissão de escrita para o proprietário
+.equ S_IRGRP, 0040      # permissão de leitura para o grupo
+.equ S_IROTH, 0004      # permissão de leitura para outros
+
+# PLANO DE JOGO
+# Para o printf e o scanf precisa ler o conteúdo caractere por caractere e identificar os %d, %f, %c, etc. E fazer a conversão
+# Para o fprintf e o fscanf só precisa ler a string do arquivo ou escrever a string no arquivo
+# o fopen e o fclose são apenas chamadas de sistema básicas.
 
 .section .text
 .globl _start
 
-_start:
 
-movq EXIT, %rax
 syscall
