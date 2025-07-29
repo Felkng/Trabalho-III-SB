@@ -33,5 +33,24 @@ nome_arquivo: .string "ola mundo.txt"
 .section .text
 .globl _start
 
+_fopen:
+  pushq %rbp
+  movq %rsp, %rbp
+  lea nome_arquivo(%rip), %rdi
+  movq $(O_CREAT | O_WRONLY), %rsi
+  movq $(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH), %rdx
+  movq $SYS_OPEN, %rax
+  syscall
+  popq %rbp
+ret
 
+
+_start:
+  pushq %rbp
+  movq %rsp, %rbp
+  call _fopen 
+  movq %rax, %rdi
+  movq $SYS_CLOSE, %rax
+  syscall 
+movq $EXIT, %rax
 syscall
