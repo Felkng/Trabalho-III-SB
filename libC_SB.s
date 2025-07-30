@@ -95,8 +95,11 @@ _start:
   pushq %rbp
   movq %rsp, %rbp
   call _fopen 
+
   movq %rax, %rdi
-  movq $SYS_CLOSE, %rax
-  syscall 
+  call _fwrite
+
+  movq %r12, %rdi
+  call _fclose
 movq $EXIT, %rax
 syscall
