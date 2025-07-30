@@ -1,5 +1,6 @@
 .section .data
 nome_arquivo: .string "ola mundo.txt"
+mensagem: .string "primeira mensagem"
 .section .bss
 
 # CHAMADAS DE SISTEMA
@@ -32,6 +33,25 @@ nome_arquivo: .string "ola mundo.txt"
 
 .section .text
 .globl _start
+
+_get_string_len:
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq %rbx
+  pushq %r12
+  xorq %r12, %r12
+  _for_len_string:
+    movb (%rdi, %r12, 1), %bl
+    cmp $0, %bl 
+    je _end_for_len_string
+    incq %r12
+    jmp _for_len_string
+  _end_for_len_string:
+  movq %r12, %rax
+  popq %r12
+  popq %rbx
+  popq %rbp
+ret
 
 _fopen:
   pushq %rbp
