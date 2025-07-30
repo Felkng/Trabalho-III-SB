@@ -64,6 +64,32 @@ _fopen:
   popq %rbp
 ret
 
+_fclose:
+  pushq %rbp
+  movq %rsp, %rbp
+  lea nome_arquivo(%rip), %rdi
+  movq $SYS_CLOSE, %rax
+  syscall
+  popq %rbp
+ret
+
+_fwrite:
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq %r13
+
+  movq %rdi, %r13 
+  lea mensagem(%rip), %rdi
+  call _get_string_len
+  movq %rax, %rdx
+  lea mensagem(%rip), %rsi
+  movq %r13, %rdi
+  movq $SYS_WRITE, %rax
+  syscall
+
+  popq %r13
+  popq %rbp
+ret
 
 _start:
   pushq %rbp
