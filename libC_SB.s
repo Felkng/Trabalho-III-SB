@@ -1,6 +1,6 @@
 .section .data
 nome_arquivo: .string "ola mundo.txt"
-mensagem: .string "primeira mensagem"
+mensagem: .string "primeira mensagem aiai ai ui ui ui"
 .section .bss
 
 # CHAMADAS DE SISTEMA
@@ -11,6 +11,8 @@ mensagem: .string "primeira mensagem"
 .equ SYS_CLOSE, 3 # fecha arquivo / rdi = file descriptor
 .equ SYS_CREATE, 85 # abre ou cria arquivo / rdi = endereço de NULL terminado com o nome do arquivo / rsi = flags de modo de arquivo
 .equ SYS_LSEEK, 8 # reposiciona ponteiro para ler/escrever no arquivo / rdi = file descriptor / rsi = offset / rdx = origem
+.equ STDOUT, 1
+.equ STDIN, 0
 
 # PERMISSÕES DE ARQUIVO E FLAGS DE MODO
 .equ O_RDONLY, 0        # somente leitura
@@ -26,13 +28,14 @@ mensagem: .string "primeira mensagem"
 .equ S_IRGRP, 0040      # permissão de leitura para o grupo
 .equ S_IROTH, 0004      # permissão de leitura para outros
 
-# PLANO DE JOGO
-# Para o printf e o scanf precisa ler o conteúdo caractere por caractere e identificar os %d, %f, %c, etc. E fazer a conversão
-# Para o fprintf e o fscanf só precisa ler a string do arquivo ou escrever a string no arquivo
-# o fopen e o fclose são apenas chamadas de sistema básicas.
 
 .section .text
-.globl _start
+.globl _fprintf
+.globl _fclose
+.globl _fscanf
+.globl _fopen
+.globl _printf
+.globl _scanf
 
 _get_string_len:
   pushq %rbp
@@ -53,53 +56,66 @@ _get_string_len:
   popq %rbp
 ret
 
-_fopen:
+#parâmetros de func:(SOMENTE APLICADO PARA INTEIROS, STRINGS E CHAR)
+#1º rdi
+#2º rsi, 
+#3º rdx, 
+#4º rcx, 
+#5º r8, 
+#6º r9, 
+#7º+ stack
+
+#parâmetros de float e double:
+#1º xmm0
+#2º xmm1
+#3º xmm2
+#4º xmm3
+
+_handle_formatter:
   pushq %rbp
   movq %rsp, %rbp
-  lea nome_arquivo(%rip), %rdi
-  movq $(O_CREAT | O_WRONLY), %rsi
-  movq $(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH), %rdx
-  movq $SYS_OPEN, %rax
-  syscall
+
+
+
   popq %rbp
 ret
 
-_fclose:
+#parâmetros de long float/double vão para o xmm 
+_printf:
   pushq %rbp
   movq %rsp, %rbp
-  lea nome_arquivo(%rip), %rdi
-  movq $SYS_CLOSE, %rax
-  syscall
-  popq %rbp
-ret
+  pushq %r9 # -8(%rbp)
+  pushq %r8 # -16(%rbp)
+  pushq %rcx # -24(%rbp)
+  pushq %rdx # -32(%rbp)
+  pushq %rsi # -40(%rbp)
+  pushq %rdi # -48(%rbp)
+  pushq %rbx
+  pushq %r12 #iterador
+  pushq %r13 #string
+  xor %r12, %r12
+  movq -48(%rbp), %r13
+  _for1:
+    movb (%r13, %r12, 1), %bl
+    cmp $0, %bl
+    je _end_for1
+    movq $SYS_WRITE, %rax
+    movq $STDOUT, %rdi
+    leaq (%r13, %r12, 1), %rsi
+    movq $1, %rdx
+    syscall
 
-_fwrite:
-  pushq %rbp
-  movq %rsp, %rbp
-  pushq %r13
-
-  movq %rdi, %r13 
-  lea mensagem(%rip), %rdi
-  call _get_string_len
-  movq %rax, %rdx
-  lea mensagem(%rip), %rsi
-  movq %r13, %rdi
-  movq $SYS_WRITE, %rax
-  syscall
-
+    incq %r12
+    jmp _for1
+  _end_for1:
+  popq %r12
   popq %r13
+  popq %rbx
+  popq %rdi
+  popq %rsi
+  popq %rdx
+  popq %rcx
+  popq %r8
+  popq %r9
   popq %rbp
 ret
-
-_start:
-  pushq %rbp
-  movq %rsp, %rbp
-  call _fopen 
-
-  movq %rax, %rdi
-  call _fwrite
-
-  movq %r12, %rdi
-  call _fclose
-movq $EXIT, %rax
-syscall
