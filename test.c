@@ -17,7 +17,8 @@ int main() {
   char p5 = 'J';
   long double p6 = 789.90;
 
-  int res = _printf("%ld %d %s %c", p4, -24324, p3, p5);
+  int res = _printf("%ld, %d, %s, %c, %d, %d, %d, %s, %d, %c", p4, -24324, p3,
+                    p5, 90, 17, 28, file_name, -1230, 'M');
   printf("\nQuantidade de caracteres no _printf: %d\n", res);
   return 0;
 }

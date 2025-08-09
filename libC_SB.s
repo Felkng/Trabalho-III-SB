@@ -175,43 +175,55 @@ _handle_print_formatter:
     _case_integer:
       cmp $'d', %bl
       jne _case_string
+
+      movq (%r10,%r8), %rdx #rdx = proximo parametro do printf | r8 = parametro normal | r9 = parametro de xmm | r10 = referencia de rbp em printf
       movslq %edx, %rdx
       _is_long_int:
       call _int_to_string
       movq %rax, %rcx
       movq %rax, %rdi
       call _get_string_len
+      addq $8, %r8
       jmp _end_handler_print
 
     _case_string:
       cmp $'s', %bl
       jne _case_char
+
+      movq (%r10,%r8), %rdx #rdx = proximo parametro do printf | r8 = parametro normal | r9 = parametro de xmm | r10 = referencia de rbp em printf
       movq %rdx, %rcx
       movq %rdx, %rdi
       call _get_string_len
+      addq $8, %r8
       jmp _end_handler_print
 
     _case_char:
       cmp $'c', %bl
       jne _case_float
+
+      movq (%r10,%r8), %rdx #rdx = proximo parametro do printf | r8 = parametro normal | r9 = parametro de xmm | r10 = referencia de rbp em printf
       movq %rdx, (%rcx)
       incq %rcx
       movq $0, (%rcx)
       decq %rcx
       movq $1, %rax
+      addq $8, %r8
       jmp _end_handler_print
 
     _case_float:
       cmp $'f', %bl
       jne _end_handler_print
 
+      movq (%r10,%r9), %rdx #rdx = proximo parametro do printf | r8 = parametro normal | r9 = parametro de xmm | r10 = referencia de rbp em printf
       #faz alguma coisa
-
+      addq $8, %r9
   _end_handler_print:
   popq %r12
   popq %rbx
   popq %rbp
 ret
+
+
 
 #parâmetros de long float/double vão para o xmm 
 _printf:
@@ -223,16 +235,35 @@ _printf:
   pushq %rdx # -32(%rbp)
   pushq %rsi # -40(%rbp)
   pushq %rdi # -48(%rbp)
+  subq $8, %rsp
+  movsd %xmm7, (%rsp) # -56(%rbp)
+  subq $8, %rsp
+  movsd %xmm6, (%rsp) # -64(%rbp)
+  subq $8, %rsp
+  movsd %xmm5, (%rsp) # -72(%rbp)
+  subq $8, %rsp
+  movsd %xmm4, (%rsp) # -80(%rbp)
+  subq $8, %rsp
+  movsd %xmm3, (%rsp) # -88(%rbp)
+  subq $8, %rsp
+  movsd %xmm2, (%rsp) # -96(%rbp)
+  subq $8, %rsp
+  movsd %xmm1, (%rsp) # -104(%rbp)
+  subq $8, %rsp
+  movsd %xmm0, (%rsp) # -112(%rbp)
   pushq %rbx
-  pushq %r12 #iterador
-  pushq %r13 #string
-  pushq %r14 #paramters pointer
-  pushq %r15 #contador de caractere
 
-  movq $-40, %r14
-  movq $0, %r12
+  movq $-40, %r8  #paramters pointer
+  movq $-112, %r9  #xmm pointer
+  movq %rbp, %r10 # referencia de rbp em r10 
+
+  pushq %r12 # iterador
+  pushq %r13 # string
+  pushq %r14 # contador de caractere
+
   movq -48(%rbp), %r13
-  movq $0, %r15
+  movq $0, %r14
+  movq $0, %r12 #r12 = iterador
   _for1:
     movb (%r13, %r12, 1), %bl
     cmp $0, %bl
@@ -243,36 +274,61 @@ _printf:
       jne _normal_caracter
     
       _if1:
-        cmp $0, %r14
+        cmp $0, %r8
         jne _end_if1
-        movq $16, %r14
+        _check_r9_pointing_stack:
+        cmp $-48, %r9
+        jl _r9_still_not_pointing
+        
+        _r9_already_pointing:
+        movq %r9, %r8
+        jmp _end_if1
+  
+        _r9_still_not_pointing:
+        movq $16, %r8
+
       _end_if1:
+
+      _if3:
+        cmp $-48, %r9 #verifica se acabou os registradores xmm passados por parâmetro
+        jne _end_if3 # se r9 for menor que -48 ele ainda não tá apontado para a pilha
+        _check_r8_pointing_stack:
+          cmp $0, %r8
+          jl _r8_still_not_pointing # se r8 for menor que 0 ele ainda não tá apontando para pilha
+
+        _r8_already_pointing:
+          movq %r8, %r9 #passa o ponteiro de r8 para r9
+          jmp _end_if3
+
+        _r8_still_not_pointing:
+          movq $16, %r9 # se o r8 não tiver apontando para a pilha ainda, o r9 começa a apontar primeiro
+
+      _end_if3:
       
       incq %r12 # já pega o caracter depois do %
       movq %r13, %rdi #rdi = string
       movq %r12, %rsi #rsi = posicao atual da string
-      movq (%rbp,%r14), %rdx #rdx = proximo parametro do printf
       subq $NUMERO_STRING_BUFFER, %rsp
       movq %rsp, %rcx #string para salvar o parâmetro formatado
       
+      # r8 = paarametros normais 
+      # r9 = parametros de xmm
       call _handle_print_formatter
 
       movq %rsi, %r12
       
       movq %rax, %rdx #quantidade de caracteres para imprimir
-      addq %rax, %r15
+      addq %rax, %r14
       movq %rcx, %rsi
       movq $SYS_WRITE, %rax
       movq $STDOUT, %rdi
       syscall
       addq $NUMERO_STRING_BUFFER, %rsp
 
-      addq $8, %r14
-
       jmp _inc_for1
 
     _normal_caracter:
-      incq %r15
+      incq %r14
       leaq (%r13, %r12, 1), %rsi
       movq $SYS_WRITE, %rax
       movq $STDOUT, %rdi
@@ -285,9 +341,9 @@ _printf:
     jmp _for1
   _end_for1:
 
-  movq %r15, %rax
-
-  popq %r15
+  movq %r14, %rax
+  
+  addq $64, %rsp #desaloca xmm
   popq %r14
   popq %r13
   popq %r12
