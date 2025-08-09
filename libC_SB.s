@@ -29,6 +29,7 @@
 
 # CONSTANTES NO GERAL
 .equ NUMERO_STRING_BUFFER, 64
+.equ FLOAT_PRECISION, 6
 
 .section .text
 .globl _fprintf
@@ -75,35 +76,21 @@ _get_string_len:
 ret
 
 _int_to_string:
+# rdi = numero
+# rsi = buffer da string
+# retorna a string
   pushq %rbp
   movq %rsp, %rbp
   pushq %rbx #string
   pushq %r12 #10
   pushq %r13 #sinal
   pushq %r14 #final da string
-  movq %rdx, %rax #rax = numero
+  movq %rdi, %rax #rax = numero
 
   movq $10, %r12
-  movq %rcx, %rbx
+  movq %rsi, %rbx
   movq %rbx, %r14
   movq $0, %r13
-
-  cmp $0, %rax
-  jne _not_zero1
-
-  _is_zero1:
-    movb $'0', (%rbx)
-    incq %rbx
-    movb $0, (%rbx)
-    subq $1, %rbx
-    movq %rbx, %rax
-    popq %r14
-    popq %r13
-    popq %r12
-    popq %rbx
-    popq %rbp
-    ret
-  _not_zero1:
 
   cmp $0, %rax
   jge _integer_conversor
@@ -142,6 +129,116 @@ _int_to_string:
 ret
 
 
+_float_to_string:
+# xmm0 = numero
+# rdi = buffer da string
+# retorna a string
+  pushq %rbp
+  movq %rsp, %rbp
+
+  pushq %rbx
+  pushq %r12 # buffer da parte inteira
+  pushq %r13 # buffer da parte decimal
+  pushq %r14 # numero parte inteira
+  pushq %r15 # numero parte decimal
+
+  movq %rdi, %rbx
+
+  subq $NUMERO_STRING_BUFFER, %rsp
+  movq %rsp, %r12
+
+  subq $NUMERO_STRING_BUFFER, %rsp
+  movq %rsp, %r13
+
+  movq $10, %rax
+  cvtsi2sd %rax, %xmm1 # xmm1 = 10
+  cvttsd2si %xmm0, %r14 
+  
+  cvtsi2sd %r14, %xmm2
+  subsd %xmm2, %xmm0
+
+  _retira_negativo_do_xmm:
+    cmp $0, %r14
+    jge _xmm_nao_negativo
+    movq $-1, %rax
+    cvtsi2sd %rax, %xmm2
+    mulsd %xmm2, %xmm0
+  _xmm_nao_negativo:
+  
+  movq %r14, %rdi
+  movq %r12, %rsi
+  call _int_to_string
+  movq %rax, %r12
+
+  movq $0, %rax
+  movq %r13, %rsi
+  movb $'.', (%rsi)
+  incq %rsi
+
+  _for_get_depois_da_virgula:  
+    cmp $FLOAT_PRECISION, %rax
+    jge _end_for_get_depois_da_virgula
+
+    mulsd %xmm1, %xmm0
+    cvttsd2si %xmm0, %r15
+
+    movq %r15, %rdi
+    addb $'0', %r15b
+    movb %r15b, (%rsi)
+    incq %rsi
+
+    cvtsi2sdq %rdi, %xmm2
+    subsd %xmm2, %xmm0
+    
+    incq %rax
+    jmp _for_get_depois_da_virgula
+  _end_for_get_depois_da_virgula:
+
+
+  movq %rbx, %rdi
+  movq %rdi, %rax
+  movq $0, %r14
+  movq $0, %r15
+
+  _for_join_two_buffers1:
+  movb (%r12, %r14, 1), %bl
+  cmp $0, %bl
+  je _end_for_join_two_buffers1
+
+  movb %bl, (%rax)
+  incq %rax
+  incq %r14
+  jmp _for_join_two_buffers1
+  _end_for_join_two_buffers1:
+ 
+
+  _for_join_two_buffers2:
+  movb (%r13, %r15, 1), %bl
+  cmp $0, %bl
+  je _end_for_join_two_buffers2
+
+  movb %bl, (%rax)
+  incq %rax
+  incq %r15
+  jmp _for_join_two_buffers2
+  _end_for_join_two_buffers2:
+  
+  movb $0, (%rax)
+  movq %rdi, %rax
+
+
+  addq $NUMERO_STRING_BUFFER, %rsp
+  addq $NUMERO_STRING_BUFFER, %rsp
+  popq %r15
+  popq %r14
+  popq %r13
+  popq %r12
+  popq %rbx
+  popq %rbp
+ret
+
+
+
 _handle_print_formatter:
 # rdi = string
 # rsi = posição da string
@@ -150,9 +247,8 @@ _handle_print_formatter:
   pushq %rbp
   movq %rsp, %rbp
   pushq %rbx
-  pushq %r12
+  pushq %r13
   movb (%rdi, %rsi, 1), %bl
-  movq $0, %r12
 
   _is_long:
     cmp $'l', %bl
@@ -163,10 +259,10 @@ _handle_print_formatter:
     _if2:
       cmp $'f', %bl
       jne _else_if2
-      movq $1, %r12
-      jmp _case_float
+      movq (%r10,%r9), %xmm0 #rdx = proximo parametro do printf | r8 = parametro normal | r9 = parametro de xmm | r10 = referencia de rbp em printf
+      jmp _is_long_float
     _else_if2:
-      movq $2, %r12
+      movq (%r10,%r8), %rdx #rdx = proximo parametro do printf | r8 = parametro normal | r9 = parametro de xmm | r10 = referencia de rbp em printf
       jmp _is_long_int
 
   _end_long_check:
@@ -179,8 +275,14 @@ _handle_print_formatter:
       movq (%r10,%r8), %rdx #rdx = proximo parametro do printf | r8 = parametro normal | r9 = parametro de xmm | r10 = referencia de rbp em printf
       movslq %edx, %rdx
       _is_long_int:
+      
+      movq %rdx, %rdi
+      movq %rsi, %r13
+      movq %rcx, %rsi
       call _int_to_string
+      movq %r13, %rsi
       movq %rax, %rcx
+
       movq %rax, %rdi
       call _get_string_len
       addq $8, %r8
@@ -214,11 +316,22 @@ _handle_print_formatter:
       cmp $'f', %bl
       jne _end_handler_print
 
-      movq (%r10,%r9), %rdx #rdx = proximo parametro do printf | r8 = parametro normal | r9 = parametro de xmm | r10 = referencia de rbp em printf
-      #faz alguma coisa
+      movq (%r10,%r9), %xmm0 #rdx = proximo parametro do printf | r8 = parametro normal | r9 = parametro de xmm | r10 = referencia de rbp em printf
+      cvtsd2ss %xmm0, %xmm0
+      _is_long_float:
+
+      movq %rcx, %rdi
+      movq %rsi, %r13
+      call _float_to_string
+      movq %r13, %rsi
+      movq %rax, %rcx
+
+      movq %rax, %rdi
+      call _get_string_len
       addq $8, %r9
+
   _end_handler_print:
-  popq %r12
+  popq %r13
   popq %rbx
   popq %rbp
 ret
@@ -362,11 +475,11 @@ _printf:
 
   movq %r14, %rax
   
-  addq $64, %rsp #desaloca xmm
   popq %r14
   popq %r13
   popq %r12
   popq %rbx
+  addq $64, %rsp #desaloca xmm
   popq %rdi
   popq %rsi
   popq %rdx
