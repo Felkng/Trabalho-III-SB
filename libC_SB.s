@@ -95,6 +95,7 @@ _int_to_string:
     movb $'0', (%rbx)
     incq %rbx
     movb $0, (%rbx)
+    subq $1, %rbx
     movq %rbx, %rax
     popq %r14
     popq %r13
@@ -166,13 +167,16 @@ _handle_print_formatter:
       jmp _case_float
     _else_if2:
       movq $2, %r12
-      jmp _case_integer
+      jmp _is_long_int
+
   _end_long_check:
 
   _handler_print:
     _case_integer:
       cmp $'d', %bl
       jne _case_string
+      movslq %edx, %rdx
+      _is_long_int:
       call _int_to_string
       movq %rax, %rcx
       movq %rax, %rdi
@@ -253,6 +257,8 @@ _printf:
       
       call _handle_print_formatter
 
+      movq %rsi, %r12
+      
       movq %rax, %rdx #quantidade de caracteres para imprimir
       addq %rax, %r15
       movq %rcx, %rsi
