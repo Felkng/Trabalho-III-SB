@@ -304,6 +304,25 @@ _printf:
           movq $16, %r9 # se o r8 não tiver apontando para a pilha ainda, o r9 começa a apontar primeiro
 
       _end_if3:
+
+      _if4:
+        cmp $0, %r8
+        jl _end_if4
+        cmp $-48, %r9
+        je _end_if4
+
+        # verifica qual dos dois é maior e sincroniza o menor com o maior
+        cmp %r8, %r9
+        jle _sinc_r9_to_r8
+
+        _sinc_r8_to_r9:
+          movq %r9, %r8 
+          jmp _end_if4
+
+        _sinc_r9_to_r8:
+          movq %r8, %r9
+
+      _end_if4:
       
       incq %r12 # já pega o caracter depois do %
       movq %r13, %rdi #rdi = string
