@@ -92,7 +92,7 @@ _int_to_string:
   jne _not_zero1
 
   _is_zero1:
-    movb $'0', (%rbx)  
+    movb $'0', (%rbx)
     incq %rbx
     movb $0, (%rbx)
     movq %rbx, %rax
@@ -174,23 +174,27 @@ _handle_print_formatter:
       cmp $'d', %bl
       jne _case_string
       call _int_to_string
-      movq %rax, %rcx 
-      movq %rax, %rdi 
+      movq %rax, %rcx
+      movq %rax, %rdi
       call _get_string_len
       jmp _end_handler_print
 
     _case_string:
       cmp $'s', %bl
-      jne _case_char 
-
-      #faz alguma coisa 
+      jne _case_char
+      movq %rdx, %rcx
+      movq %rdx, %rdi
+      call _get_string_len
       jmp _end_handler_print
 
     _case_char:
-      cmp $'c', %bl    
+      cmp $'c', %bl
       jne _case_float
-
-      #faz alguma coisa
+      movq %rdx, (%rcx)
+      incq %rcx
+      movq $0, (%rcx)
+      decq %rcx
+      movq $1, %rax
       jmp _end_handler_print
 
     _case_float:
