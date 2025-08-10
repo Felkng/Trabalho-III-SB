@@ -29,8 +29,9 @@ int main() {
   double flotandoa;
   int entradas_lidas = _scanf("%f%c%s%d%lf%ld%s", &flotando, &testeC, &lala,
                               &lula, &flotandoa, &meu_lar, &lolo);
-  _printf("%f,%c,%s,%d,%lf,%ld,%s\n quantidade de entradas lidas: ", flotando,
-          testeC, lala, lula, flotandoa, meu_lar, lolo, entradas_lidas);
+  _printf("%f,%c,%s,%d,%lf,%ld,%s\n quantidade de entradas lidas: %d\n",
+          flotando, testeC, lala, lula, flotandoa, meu_lar, lolo,
+          entradas_lidas);
 
   return 0;
 }

@@ -669,7 +669,6 @@ _string_to_float:
   pushq %rbx
 
   movq %rdi, %r12 #caractere
-  movq %rsi, %r13 #flag de numero negativo
   xorq %r14, %r14 #guarda numero antes do ponto
   xorq %rcx, %rcx #contador primeiro for
   xorq %r15, %r15 #guarda numero depois do ponto
@@ -678,13 +677,14 @@ _string_to_float:
   xorpd %xmm1, %xmm1
 
 
+  movq $0, %r13 #flag de numero negativo
   movb (%r12), %al # pega primeiro caractere para verificar sinal
   xorq %rcx, %rcx
 
   _check_negative_string_to_float:
     cmpb $45, %al
     jne _check_positive_string_to_float
-    movq $1, %rsi #flag de número negativo
+    movq $1, %r13 #flag de número negativo
     incq %rcx
     jmp _after_check_sign_string_to_float
 
@@ -696,7 +696,7 @@ _string_to_float:
   
   leaq (%rdi, %rcx, 1), %r12 #Pega a referência do primeiro número inteiro
  
-
+  movq $0, %rcx
   _for_string_to_float_numeral_part:
     movb (%r12, %rcx, 1), %al # percorre a string até o '.'
     cmp $'.', %al
