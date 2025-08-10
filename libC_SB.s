@@ -813,6 +813,8 @@ _case_scan_f:
 cmp $'f', %bl
 jne _end_handler_scan
 incq %r9
+call _string_to_float
+movq %xmm0, (%r8)
 
 _end_handler_scan:
   
@@ -876,11 +878,11 @@ _scanf:
     
     addq $8, %r14
 
-    #cmp %rbp, %r8
-    #jne _still_not_using_stack_scanf
-    #movq 16(%rbp), %r8
+    cmp %rbp, %r14
+    jne _still_not_using_stack_scanf
+    movq 16(%rbp), %r14
 
-    #_still_not_using_stack_scanf:
+    _still_not_using_stack_scanf:
 
 
     jmp _for_read_buffer_input
