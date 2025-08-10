@@ -1108,7 +1108,7 @@ _fprintf:
         cmp $0, %r8
         jl _end_finalize_sinc_fprintf
         cmp $-48, %r9
-        je _end_finalize_sinc_fprintf
+        jle _end_finalize_sinc_fprintf
 
         # verifica qual dos dois é maior e sincroniza o menor com o maior
         cmp %r8, %r9

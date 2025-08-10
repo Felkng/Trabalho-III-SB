@@ -59,13 +59,13 @@ void test_fprintf(char nome_arquivo[]) {
       "%d\ninteiro "
       "5: %d\ninteiro 6: %d\nlong int 1: %ld\nlong int 2: %ld\n",
       12, 32, 0, -900, INT32_MIN, INT32_MAX, LONG_MAX, LONG_MIN);
-  _printf("Quantidade de caracteres impressos: %d\n\n", n);
+  _printf("Quantidade de caracteres impressos: %d\n", n);
   n = _fprintf(
       arquivo,
       ">>>Teste 2:\nstring 1: %s\nstring 2: %s\ncaractere 1: %c\ncaractere 2: "
       "%c\nstring 3: %s\ncaractere 3: %c\n",
       "Um carro vermelho", "Um carro amarelo", 'A', 'b', "Um carro azul", 'C');
-  _printf("Quantidade de caracteres impressos: %d", n);
+  _printf("Quantidade de caracteres impressos: %d\n", n);
   n = _fprintf(
       arquivo,
       ">>>Teste 3:\nfloat 1: %f\nfloat 2: %f\nfloat 3: %f\nfloat 4: "
@@ -100,18 +100,18 @@ void test_fscanf() {
 }
 
 int main() {
-  //_printf(
-  //    "\n===================================================================="
-  //    "==================\n");
-  // test_printf();
-  //_printf(
-  //    "\n===================================================================="
-  //    "==================\n");
-  // test_scanf();
-  //_printf(
-  //    "\n===================================================================="
-  //    "==================\n");
-  // test_fprintf("felipe-rodrigues-teste-_fprintf.txt");
+  _printf(
+      "\n===================================================================="
+      "==================\n");
+  test_printf();
+  _printf(
+      "\n===================================================================="
+      "==================\n");
+  test_scanf();
+  _printf(
+      "\n===================================================================="
+      "==================\n");
+  test_fprintf("felipe-rodrigues-teste-_fprintf.txt");
   _printf("\n=================================================================="
           "====================\n");
   test_fscanf();
