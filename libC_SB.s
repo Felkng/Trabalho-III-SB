@@ -30,6 +30,8 @@
 # CONSTANTES NO GERAL
 .equ NUMERO_STRING_BUFFER, 64
 .equ FLOAT_PRECISION, 6
+.equ MAX_BUFFER_INPUT, 1024
+.equ MAX_STRING_BUFFER, 256
 
 .section .text
 .globl _fprintf
@@ -488,3 +490,198 @@ _printf:
   popq %r9
   popq %rbp
 ret
+
+
+
+_get_percent_count:
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq %rbx
+
+  movq $0, %rax
+  movq $0, %rsi
+  _for_ler_qtd_percents:
+    movb (%rdi, %rsi, 1), %bl
+    cmp $0, %bl
+    je _inc_end_for_ler_qtd_percents
+    _verifica_percent:
+    cmp $'%', %bl
+    jne _inc_end_for_ler_qtd_percents
+    incq %rax
+    
+  _inc_end_for_ler_qtd_percents:
+  incq %rsi
+  _end_for_ler_qtd_percents:
+  
+  popq %rbx
+  popq %rbp
+ret
+
+
+_get_isolated_string:
+  #rdi = input buffer
+  #rsi = string buffer
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq %rbx
+  pushq %r12
+  pushq %r13
+  pushq %r14
+  movq %rdi, %r13
+  movq %rsi, %r14
+  movq $0, %r12
+
+  _iterate_string:
+    movb (%r13, %r12, 1), %bl
+    cmp $' ', %bl
+    je _end_of_string
+    cmp $'\t', %bl
+    je _end_of_string
+    cmp $'\n', %bl
+    je _end_of_string
+    cmp $0, %bl
+    je _end_of_string
+    movb %bl, (%r14)
+    incq %r14
+    incq %r12
+    jmp _iterate_string
+  _end_of_string:
+
+    movb $0, (%r14)
+    movq %rsi, %rax
+
+  popq %r14
+  popq %r13
+  popq %r12
+  popq %rbx
+  popq %rbp
+ret
+
+
+
+_handler_scanf:
+# rdi = string
+# rsi = tamanho da string
+pushq %rbp
+movq %rsp, %rbp
+pushq %rbx
+pushq %r12
+
+movq $0, %r12
+incq %r9
+movb (%r9, %r12, 1), %bl
+
+cmp $'l', %bl
+jne _case_scan_d
+incq %r9
+movb (%r9, %r12, 1), %bl
+
+_case_scan_ld:
+cmp $'d', %bl
+jne _case_scan_lf
+incq %r9
+
+_case_scan_lf:
+cmp $'f', %bl
+jne _case_scan_d
+incq %r9
+
+_case_scan_d:
+cmp $'d', %bl
+jne _case_scan_d
+incq %r9
+
+_case_scan_c:
+cmp $'c', %bl
+jne _case_scan_s
+incq %r9
+
+_case_scan_s:
+cmp $'s', %bl
+jne _case_scan_d
+incq %r9
+
+_case_scan_f:
+cmp $'f', %bl
+jne _end_handler_scan
+incq %r9
+
+_end_handler_scan:
+  
+  popq %r12
+  popq %rbx
+  popq %rbp
+ret
+
+
+
+_scanf:
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq %r9 # -8(%rbp)
+  pushq %r8 # -16(%rbp)
+  pushq %rcx # -24(%rbp)
+  pushq %rdx # -32(%rbp)
+  pushq %rsi # -40(%rbp)
+  pushq %rdi # -48(%rbp)
+  subq $MAX_BUFFER_INPUT, %rsp
+  pushq %rbx
+  pushq %r12 # input buffer
+  pushq %r13 # contador de dados lidos
+  pushq %r15
+  movq -48(%rbp), %r8 # (apontador para variáveis)
+  movq -48(%rbp), %r9 # formatador atual
+
+  movq %rbp, %r10 # cópia de rbp (CAMISA 10)
+
+  _read_input:
+    movq %rsp, %rsi
+    movq $SYS_READ, %rax
+    movq $STDIN, %rdi
+    movq $MAX_BUFFER_INPUT, %rdx
+    syscall
+    movq %rsi, %r12
+    movq %r12, %r15
+  
+  _for_read_buffer_input:
+    movq $0, %rax
+    movb (%r15, %rax, 1), %bl
+    cmp $0, %bl
+    je _end_read_buffer_input
+
+    movq %r15, %rdi
+    subq $MAX_STRING_BUFFER, %rsp
+    movq %rsp, %rsi
+    call _get_isolated_string
+    movq %rax, %rdi
+    call _get_string_len
+    movq %rax, %rcx
+    addq $MAX_STRING_BUFFER, %rsp #DESALOCA TAMANHO MÁXIMO DE STRING PORQUE AGORA SABE O TAMANHO CERTO
+    subq %rcx, %rsp
+    movq %r15, %rdi
+    movq %rsp, %rsi
+    call _get_isolated_string
+    movq %rax, %rdi # rdi = string lida | rcx = tamanho da string (UTILIZAR PARA CONTINUAR LENDO O RESTO DO BUFFER)
+    lea (%r12, %rcx), %r15
+    incq %r15
+    
+    movq %rcx, %rsi
+    call _handler_scanf
+
+    jmp _for_read_buffer_input
+  _end_read_buffer_input:
+
+  popq %r15
+  popq %r13
+  popq %r12
+  popq %rbx
+  addq $MAX_BUFFER_INPUT, %rsp
+  popq %rdi
+  popq %rsi
+  popq %rdx
+  popq %rcx
+  popq %r8
+  popq %r9
+  popq %rbp
+ret
+
