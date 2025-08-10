@@ -564,10 +564,12 @@ _char_to_int:
   movq %rsp, %rbp
   movb %dil, %al
   subb $'0', %al
+  movzbl %al, %eax
   popq %rbp
 ret
 
 _string_to_int:
+# rdi = string
   pushq %rbp
   movq %rsp, %rbp
   pushq %rbx
@@ -576,10 +578,27 @@ _string_to_int:
   pushq %r14
 
   movq %rdi, %r12
-  movq %rsi, %r13
   xorq %r14, %r14
   xorq %rcx, %rcx
+  movq $0, %r13
 
+  movb (%r12, %r14, 1), %al
+  _check_negative:
+    cmpb $'-', %al
+    jne _check_positive
+    movq $1, %r13
+    incq %rcx
+    jmp _after_check_sign
+
+  _check_positive:
+    cmpb $'+', %al
+    jne _after_check_sign
+    incq %rcx
+  _after_check_sign:
+  
+  leaq (%rdi, %rcx, 1), %r12 #Pega a referência do primeiro número inteiro
+ 
+  movq $0, %rcx
 _for_int_to_string:
   movb (%r12, %rcx, 1), %al
   cmp $0, %al
@@ -627,7 +646,7 @@ _extract_floating_part:
     je _end_for_extract_floating_part
     imulq $10, %rax
     decq %rsi
-    jmp _for3
+    jmp _end_for_extract_floating_part
   _end_for_extract_floating_part:
   
   cvtsi2sd %rax, %xmm0 #xmm0 tem potencia de 10
@@ -640,6 +659,7 @@ _extract_floating_part:
 ret
 
 _string_to_float:
+  # rdi = string
   pushq %rbp
   movq %rsp, %rbp
   pushq %r12
@@ -756,18 +776,31 @@ incq %r9
 
 _case_scan_d:
 cmp $'d', %bl
-jne _case_scan_d
+jne _case_scan_c
 incq %r9
+  call _string_to_int
+  movslq %eax, %rax
+  movl %eax, (%r8)
+  addq $4, %r8
+  jmp _end_handler_scan
 
 _case_scan_c:
 cmp $'c', %bl
 jne _case_scan_s
 incq %r9
+  movq $1, %r12
+  movb (%rdi, %r12, 1), %al
+  movb %al, (%r8)
+  addq $1, %r8
+  jmp _end_handler_scan
 
 _case_scan_s:
 cmp $'s', %bl
-jne _case_scan_d
+jne _case_scan_f
 incq %r9
+  movq %rdi, %r8
+  addq %rsi, %r8
+  jmp _end_handler_scan
 
 _case_scan_f:
 cmp $'f', %bl
@@ -797,7 +830,7 @@ _scanf:
   pushq %r12 # input buffer
   pushq %r13 # contador de dados lidos
   pushq %r15
-  movq -48(%rbp), %r8 # (apontador para variáveis)
+  movq -40(%rbp), %r8 # (apontador para variáveis)
   movq -48(%rbp), %r9 # formatador atual
 
   movq %rbp, %r10 # cópia de rbp (CAMISA 10)
@@ -824,17 +857,19 @@ _scanf:
     movq %rax, %rdi
     call _get_string_len
     movq %rax, %rcx
-    addq $MAX_STRING_BUFFER, %rsp #DESALOCA TAMANHO MÁXIMO DE STRING PORQUE AGORA SABE O TAMANHO CERTO
-    subq %rcx, %rsp
-    movq %r15, %rdi
-    movq %rsp, %rsi
-    call _get_isolated_string
-    movq %rax, %rdi # rdi = string lida | rcx = tamanho da string (UTILIZAR PARA CONTINUAR LENDO O RESTO DO BUFFER)
-    lea (%r12, %rcx), %r15
+    lea (%r15, %rcx), %r15
     incq %r15
     
     movq %rcx, %rsi
     call _handler_scanf
+    addq $MAX_STRING_BUFFER, %rsp #DESALOCA TAMANHO MÁXIMO DE STRING PORQUE AGORA SABE O TAMANHO CERTO
+
+    cmp %rbp, %r8
+    jne _still_not_using_stack_scanf
+    movq 16(%rbp), %r8
+
+    _still_not_using_stack_scanf:
+
 
     jmp _for_read_buffer_input
   _end_read_buffer_input:
