@@ -21,12 +21,16 @@ int main() {
   // printf("\nQuantidade de caracteres no _printf: %d\n", res);
 
   int lula;
-  int meu_lar;
-  int minha_casa;
+  long int meu_lar;
   char testeC;
   char lala[300];
-  _scanf("%s", &lala);
-  _printf("%s\n", lala);
+  char lolo[300];
+  float flotando;
+  double flotandoa;
+  int entradas_lidas = _scanf("%f%c%s%d%lf%ld%s", &flotando, &testeC, &lala,
+                              &lula, &flotandoa, &meu_lar, &lolo);
+  _printf("%f,%c,%s,%d,%lf,%ld,%s\n quantidade de entradas lidas: ", flotando,
+          testeC, lala, lula, flotandoa, meu_lar, lolo, entradas_lidas);
 
   return 0;
 }

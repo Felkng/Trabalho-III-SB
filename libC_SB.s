@@ -646,7 +646,7 @@ _extract_floating_part:
     je _end_for_extract_floating_part
     imulq $10, %rax
     decq %rsi
-    jmp _end_for_extract_floating_part
+    jmp _for_extract_floating_part
   _end_for_extract_floating_part:
   
   cvtsi2sd %rax, %xmm0 #xmm0 tem potencia de 10
@@ -677,6 +677,26 @@ _string_to_float:
   xorpd %xmm0, %xmm0
   xorpd %xmm1, %xmm1
 
+
+  movb (%r12), %al # pega primeiro caractere para verificar sinal
+  xorq %rcx, %rcx
+
+  _check_negative_string_to_float:
+    cmpb $45, %al
+    jne _check_positive_string_to_float
+    movq $1, %rsi #flag de número negativo
+    incq %rcx
+    jmp _after_check_sign_string_to_float
+
+  _check_positive_string_to_float:
+    cmpb $43, %al
+    jne _after_check_sign_string_to_float
+    incq %rcx
+  _after_check_sign_string_to_float:
+  
+  leaq (%rdi, %rcx, 1), %r12 #Pega a referência do primeiro número inteiro
+ 
+
   _for_string_to_float_numeral_part:
     movb (%r12, %rcx, 1), %al # percorre a string até o '.'
     cmp $'.', %al
@@ -694,7 +714,7 @@ _string_to_float:
     movq %rax, %r14 #r14 está com o numero inteiro
 
     incq %rcx
-    jmp _for1
+    jmp _for_string_to_float_numeral_part
   _end_for_string_to_float_numeral_part:
 
   xorq %rbx, %rbx
@@ -716,13 +736,13 @@ _string_to_float:
 
     incq %rbx
     incq %rcx
-    jmp _for2
+    jmp _for_string_to_float_decimal_part
   _end_for_string_to_float_decimal_part:
   
   
   movq %r15, %rdi
   movq %rbx, %rsi
-  call _extract_floating_part
+  call _extract_floating_part #erro aqui
 
   _no_floating_part:
   cvtsi2sd %r14, %xmm0 #xmm0 tem valor antes do '.' em double
@@ -737,12 +757,11 @@ _string_to_float:
     mulsd %xmm1, %xmm0
   _end_check_number_negative_string_to_float:
   
-  cvtsd2ss %xmm0, %xmm2 #xmm2 tem valor do numero em float
+  popq %rbx
   popq %r15
   popq %r14
   popq %r13
   popq %r12
-  popq %rbx
   popq %rbp
 ret
 
@@ -768,16 +787,25 @@ _case_scan_ld:
 cmp $'d', %bl
 jne _case_scan_lf
 incq %r9
+  incq %r11 # contador de parâmetros escritos
+  call _string_to_int
+  movq %rax, (%r8)
+  jmp _end_handler_scan
 
 _case_scan_lf:
 cmp $'f', %bl
 jne _case_scan_d
 incq %r9
+  incq %r11 # contador de parâmetros escritos
+  call _string_to_float
+  movsd %xmm0, (%r8)
+  jmp _end_handler_scan
 
 _case_scan_d:
 cmp $'d', %bl
 jne _case_scan_c
 incq %r9
+  incq %r11 # contador de parâmetros escritos
   call _string_to_int
   movslq %eax, %rax
   movl %eax, (%r8)
@@ -787,6 +815,7 @@ _case_scan_c:
 cmp $'c', %bl
 jne _case_scan_s
 incq %r9
+  incq %r11 # contador de parâmetros escritos
   movb (%rdi), %al
   movb %al, (%r8)
   jmp _end_handler_scan
@@ -795,6 +824,7 @@ _case_scan_s:
 cmp $'s', %bl
 jne _case_scan_f
 incq %r9
+  incq %r11 # contador de parâmetros escritos
   movq %rsi, %r12
   _for_copy_string_to_variable:
     cmp $0, %r12
@@ -813,11 +843,13 @@ _case_scan_f:
 cmp $'f', %bl
 jne _end_handler_scan
 incq %r9
-call _string_to_float
-movq %xmm0, (%r8)
+  incq %r11 # contador de parâmetros escritos
+  call _string_to_float
+  cvtsd2ss %xmm0, %xmm0
+  movss %xmm0, (%r8)
 
 _end_handler_scan:
-  
+
   popq %r12
   popq %rbx
   popq %rbp
@@ -854,10 +886,11 @@ _scanf:
     movq %rsi, %r12
     movq %r12, %r15
   
+  movq $0, %r11 #contador de parâmetros escritos
   _for_read_buffer_input:
     movq $0, %rax
     movb (%r15, %rax, 1), %bl
-    cmp $0, %bl
+    cmp $'\n', %bl
     je _end_read_buffer_input
 
     movq %r15, %rdi
@@ -868,25 +901,34 @@ _scanf:
     call _get_string_len
     movq %rax, %rcx
     lea (%r15, %rcx), %r15
-    incq %r15
+    _verify_end_of_read:
+      movq $0, %rax
+      movb (%r15, %rax, 1), %bl
+      cmp $'\n', %bl
+      je _is_the_end_of_read
+      incq %r15 # se não acabou a leitura passa para a próxima palavra
+
+    _is_the_end_of_read:
     
     movq (%r14), %r8
 
     movq %rcx, %rsi
     call _handler_scanf
-    addq $MAX_STRING_BUFFER, %rsp #DESALOCA TAMANHO MÁXIMO DE STRING PORQUE AGORA SABE O TAMANHO CERTO
+
+    addq $MAX_STRING_BUFFER, %rsp
     
     addq $8, %r14
 
     cmp %rbp, %r14
     jne _still_not_using_stack_scanf
-    movq 16(%rbp), %r14
+    leaq 16(%rbp), %r14
 
     _still_not_using_stack_scanf:
 
 
     jmp _for_read_buffer_input
   _end_read_buffer_input:
+  movq %r11, %rax
 
   popq %r15
   popq %r14
