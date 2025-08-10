@@ -559,6 +559,174 @@ ret
 
 
 
+_char_to_int:
+  pushq %rbp
+  movq %rsp, %rbp
+  movb %dil, %al
+  subb $'0', %al
+  popq %rbp
+ret
+
+_string_to_int:
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq %rbx
+  pushq %r12
+  pushq %r13
+  pushq %r14
+
+  movq %rdi, %r12
+  movq %rsi, %r13
+  xorq %r14, %r14
+  xorq %rcx, %rcx
+
+_for_int_to_string:
+  movb (%r12, %rcx, 1), %al
+  cmp $0, %al
+  je _end_for_int_to_string
+
+  movq %rax, %rdi
+  call _char_to_int
+  movq %rax, %r10
+
+  movq %r14, %rax
+  imulq $10, %rax
+  addq %r10, %rax
+  movq %rax, %r14
+
+  incq %rcx
+  jmp _for_int_to_string
+_end_for_int_to_string:
+
+_check_integer_is_negative:
+  movq %r14, %rax
+  cmpq $1, %r13
+  jne _end_check_integer_is_negative
+  movq $-1, %r10
+  imulq %r10, %rax
+_end_check_integer_is_negative:
+
+  popq %r14
+  popq %r13
+  popq %r12
+  popq %rbx
+  popq %rbp
+ret
+
+
+_extract_floating_part:
+  pushq %rbp  
+  movq %rsp, %rbp
+  subq $8, %rsp
+  movq $1, %rax
+
+  movq %rdi, -8(%rbp)
+  
+  _for_extract_floating_part:
+    cmp $0, %rsi
+    je _end_for_extract_floating_part
+    imulq $10, %rax
+    decq %rsi
+    jmp _for3
+  _end_for_extract_floating_part:
+  
+  cvtsi2sd %rax, %xmm0 #xmm0 tem potencia de 10
+  movq -8(%rbp), %rax
+  cvtsi2sd %rax, %xmm1 #xmm1 tem o numero depois do '.' 
+  divsd %xmm0, %xmm1 #xmm1 tem o numero depois do '.' em double
+
+  addq $8, %rsp
+  popq %rbp
+ret
+
+_string_to_float:
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq %r12
+  pushq %r13
+  pushq %r14
+  pushq %r15
+  pushq %rbx
+
+  movq %rdi, %r12 #caractere
+  movq %rsi, %r13 #flag de numero negativo
+  xorq %r14, %r14 #guarda numero antes do ponto
+  xorq %rcx, %rcx #contador primeiro for
+  xorq %r15, %r15 #guarda numero depois do ponto
+  xorq %rbx, %rbx #contador segundo for
+  xorpd %xmm0, %xmm0
+  xorpd %xmm1, %xmm1
+
+  _for_string_to_float_numeral_part:
+    movb (%r12, %rcx, 1), %al # percorre a string até o '.'
+    cmp $'.', %al
+    je _end_for_string_to_float_numeral_part
+    cmp $0, %al
+    je _no_floating_part
+
+    movq %rax, %rdi
+    call _char_to_int
+    movq %rax, %r10
+
+    movq %r14, %rax
+    imulq $10, %rax
+    addq %r10, %rax
+    movq %rax, %r14 #r14 está com o numero inteiro
+
+    incq %rcx
+    jmp _for1
+  _end_for_string_to_float_numeral_part:
+
+  xorq %rbx, %rbx
+  incq %rcx
+
+  _for_string_to_float_decimal_part:
+    movb (%r12, %rcx, 1), %al # pega primeiro caractere depois do ponto
+    cmp $0, %al # vai até o final da string
+    je _end_for_string_to_float_decimal_part
+
+    movq %rax, %rdi
+    call _char_to_int
+    movq %rax, %r10
+
+    movq %r15, %rax
+    imulq $10, %rax
+    addq %r10, %rax
+    movq %rax, %r15 #r15 está com o numero inteiro depois do '.'
+
+    incq %rbx
+    incq %rcx
+    jmp _for2
+  _end_for_string_to_float_decimal_part:
+  
+  
+  movq %r15, %rdi
+  movq %rbx, %rsi
+  call _extract_floating_part
+
+  _no_floating_part:
+  cvtsi2sd %r14, %xmm0 #xmm0 tem valor antes do '.' em double
+  addsd %xmm1, %xmm0 # xmm0 tem valor do numero em double
+  
+
+  _check_number_negative_string_to_float:
+    cmpq $1, %r13
+    jne _end_check_number_negative_string_to_float
+    movq $-1, %r10
+    cvtsi2sd %r10, %xmm1
+    mulsd %xmm1, %xmm0
+  _end_check_number_negative_string_to_float:
+  
+  cvtsd2ss %xmm0, %xmm2 #xmm2 tem valor do numero em float
+  popq %r15
+  popq %r14
+  popq %r13
+  popq %r12
+  popq %rbx
+  popq %rbp
+ret
+
+
 _handler_scanf:
 # rdi = string
 # rsi = tamanho da string
