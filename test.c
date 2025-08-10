@@ -2,7 +2,7 @@
 extern int _fprintf(FILE *stream, const char *format, ...);
 extern int _fscanf(FILE *stream, const char *format, ...);
 extern int _fclose(FILE *stream);
-extern int _fopen(const char *filename, const char *mode);
+extern FILE *_fopen(const char *filename, const char *mode);
 extern int _scanf(const char *format, ...);
 extern int _printf(const char *format, ...);
 
@@ -20,18 +20,21 @@ int main() {
   //                    p3, 12432.90313, 92983712);
   // printf("\nQuantidade de caracteres no _printf: %d\n", res);
 
-  int lula;
-  long int meu_lar;
-  char testeC;
-  char lala[300];
-  char lolo[300];
-  float flotando;
-  double flotandoa;
-  int entradas_lidas = _scanf("%f%c%s%d%lf%ld%s", &flotando, &testeC, &lala,
-                              &lula, &flotandoa, &meu_lar, &lolo);
-  _printf("%f,%c,%s,%d,%lf,%ld,%s\n quantidade de entradas lidas: %d\n",
-          flotando, testeC, lala, lula, flotandoa, meu_lar, lolo,
-          entradas_lidas);
+  // int lula;
+  // long int meu_lar;
+  // char testeC;
+  // char lala[300];
+  // char lolo[300];
+  // float flotando;
+  // double flotandoa;
+  //  int entradas_lidas = _scanf("%f%c%s%d%lf%ld%s", &flotando, &testeC, &lala,
+  //                             &lula, &flotandoa, &meu_lar, &lolo);
+  //_printf("%f,%c,%s,%d,%lf,%ld,%s\n quantidade de entradas lidas: %d\n",
+  //       flotando, testeC, lala, lula, flotandoa, meu_lar, lolo,
+  //     entradas_lidas);
+  FILE *arquivo = _fopen(file_name, "aw");
+  _fprintf(arquivo, "%s nao isso tem q dar certo, serioooooo %f", p3, 3.14);
+  _fclose(arquivo);
 
   return 0;
 }

@@ -13,18 +13,23 @@
 .equ STDIN, 0
 
 # PERMISSÕES DE ARQUIVO E FLAGS DE MODO
-.equ O_RDONLY, 0        # somente leitura
-.equ O_WRONLY, 1        # somente escrita
-.equ O_RDWR, 2          # leitura e escrita
-.equ O_CREAT, 64        # criar o arquivo se ele não existir
-.equ O_TRUNC, 512       # truncar o arquivo para tamanho 0 se ele existir
-.equ O_APPEND, 1024     # anexar dados ao final do arquivo
+.equ O_READ, 0
+.equ O_WRITE, 1
+.equ O_READ_AND_WRITE, 2
+.equ O_APPEND, 1024
+.equ O_TRUNC, 512
+.equ O_CREAT, 64
 
 # PERMISSÕES O_CREAT
-.equ S_IRUSR, 0400      # permissão de leitura para o proprietário
-.equ S_IWUSR, 0200      # permissão de escrita para o proprietário
-.equ S_IRGRP, 0040      # permissão de leitura para o grupo
-.equ S_IROTH, 0004      # permissão de leitura para outros
+.equ S_IRUSR, 0400
+.equ S_IWUSR, 0200
+.equ S_IXUSR, 0100
+.equ S_IRGRP, 0040
+.equ S_IWGRP, 0020
+.equ S_IXGRP, 0010
+.equ S_IROTH, 0004
+.equ S_IWOTH, 0004
+.equ S_IXOTH, 0004
 
 
 # CONSTANTES NO GERAL
@@ -945,3 +950,229 @@ _scanf:
   popq %rbp
 ret
 
+
+
+_fopen:
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq %rbx
+  pushq %r12
+  pushq %r13 #tem as permissões misturadas
+
+  movq $0, %r12
+  movq $0, %r13
+  _for_iterate_file_permissions:
+    movb (%rsi, %r12, 1), %bl
+    cmp $0, %bl
+    je _end_for_iterate_file_permissions
+    
+    _write_permission:
+      cmp $'w', %bl
+      jne _read_permission
+      orq $O_WRITE, %r13
+      orq $O_TRUNC, %r13
+      orq $O_CREAT, %r13
+      jmp _inc_fase_for_file_permissions
+
+    _read_permission:
+      cmp $'r', %bl
+      jne _append_permission
+      orq $O_READ, %r13
+      jmp _inc_fase_for_file_permissions
+
+    _append_permission:
+      cmp $'a', %bl
+      jne _plus_permission
+      orq $O_APPEND, %r13
+      orq $O_CREAT, %r13
+      jmp _inc_fase_for_file_permissions
+
+    _plus_permission:
+      cmp $'+', %bl
+      jne _inc_fase_for_file_permissions
+      movq $(O_READ | O_WRITE), %r8
+      notq %r8
+      andq %r8, %r13
+      orq $O_READ_AND_WRITE, %r13
+      orq $O_CREAT, %r13
+      jmp _inc_fase_for_file_permissions
+
+    _inc_fase_for_file_permissions:
+      incq %r12
+      jmp _for_iterate_file_permissions
+  _end_for_iterate_file_permissions:
+
+    movq %r13, %rsi
+    movq $SYS_OPEN, %rax
+    movq $(S_IWUSR | S_IRUSR | S_IXUSR | S_IWGRP | S_IRGRP | S_IXGRP | S_IWOTH | S_IROTH | S_IXOTH), %rdx
+    syscall
+
+  popq %r13
+  popq %r12
+  popq %rbx
+  popq %rbp
+ret
+
+_fclose:
+  pushq %rbp
+  movq %rsp, %rbp
+  movq $SYS_CLOSE, %rax
+  syscall
+  popq %rbp
+ret
+
+
+_fprintf:
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq %r9 # -8(%rbp)
+  pushq %r8 # -16(%rbp)
+  pushq %rcx # -24(%rbp)
+  pushq %rdx # -32(%rbp)
+  pushq %rsi # -40(%rbp)
+  pushq %rdi # -48(%rbp)
+  subq $8, %rsp
+  movsd %xmm7, (%rsp) # -56(%rbp)
+  subq $8, %rsp
+  movsd %xmm6, (%rsp) # -64(%rbp)
+  subq $8, %rsp
+  movsd %xmm5, (%rsp) # -72(%rbp)
+  subq $8, %rsp
+  movsd %xmm4, (%rsp) # -80(%rbp)
+  subq $8, %rsp
+  movsd %xmm3, (%rsp) # -88(%rbp)
+  subq $8, %rsp
+  movsd %xmm2, (%rsp) # -96(%rbp)
+  subq $8, %rsp
+  movsd %xmm1, (%rsp) # -104(%rbp)
+  subq $8, %rsp
+  movsd %xmm0, (%rsp) # -112(%rbp)
+  pushq %rbx
+
+  movq $-32, %r8  #paramters pointer
+  movq $-112, %r9  #xmm pointer
+  movq %rbp, %r10 # referencia de rbp em r10 
+
+  pushq %r12 # iterador
+  pushq %r13 # string
+  pushq %r14 # contador de caractere
+
+  subq $8, %rsp # file descriptor (-120(%rbp))
+  movq %rdi, -120(%rbp)
+
+  movq -40(%rbp), %r13
+  movq $0, %r14
+  movq $0, %r12 #r12 = iterador
+  _for1_fprintf:
+    movb (%r13, %r12, 1), %bl
+    cmp $0, %bl
+    je _end_for1_fprintf
+    
+    _checkpercent_fprintf:
+      cmp $'%', %bl
+      jne _normal_caracter_fprintf
+    
+      _if_fprintf:
+        cmp $0, %r8
+        jne _end_if_fprintf
+        _check_r9_pointing_stack_fprintf:
+        cmp $-48, %r9
+        jl _r9_still_not_pointing_fprintf
+        
+        _r9_already_pointing_fprintf:
+        movq %r9, %r8
+        jmp _end_if_fprintf
+  
+        _r9_still_not_pointing_fprintf:
+        movq $16, %r8
+
+      _end_if_fprintf:
+
+      _sinc_params_fprintf:
+        cmp $-48, %r9 #verifica se acabou os registradores xmm passados por parâmetro
+        jne _end_sinc_params_fprintf # se r9 for menor que -48 ele ainda não tá apontado para a pilha
+        _check_r8_pointing_stack_fprintf:
+          cmp $0, %r8
+          jl _r8_still_not_pointing_fprintf # se r8 for menor que 0 ele ainda não tá apontando para pilha
+
+        _r8_already_pointing_fprintf:
+          movq %r8, %r9 #passa o ponteiro de r8 para r9
+          jmp _end_sinc_params_fprintf
+
+        _r8_still_not_pointing_fprintf:
+          movq $16, %r9 # se o r8 não tiver apontando para a pilha ainda, o r9 começa a apontar primeiro
+
+      _end_sinc_params_fprintf:
+
+      _finalize_sinc_fprintf:
+        cmp $0, %r8
+        jl _end_finalize_sinc_fprintf
+        cmp $-48, %r9
+        je _end_finalize_sinc_fprintf
+
+        # verifica qual dos dois é maior e sincroniza o menor com o maior
+        cmp %r8, %r9
+        jle _sinc_r9_to_r8_fprintf
+
+        _sinc_r8_to_r9_fprintf:
+          movq %r9, %r8 
+          jmp _end_finalize_sinc_fprintf
+
+        _sinc_r9_to_r8_fprintf:
+          movq %r8, %r9
+
+      _end_finalize_sinc_fprintf:
+      
+      incq %r12 # já pega o caracter depois do %
+      movq %r13, %rdi #rdi = string
+      movq %r12, %rsi #rsi = posicao atual da string
+      subq $NUMERO_STRING_BUFFER, %rsp
+      movq %rsp, %rcx #string para salvar o parâmetro formatado
+      
+      # r8 = paarametros normais 
+      # r9 = parametros de xmm
+      call _handle_print_formatter
+
+      movq %rsi, %r12
+      
+      movq %rax, %rdx #quantidade de caracteres para imprimir
+      addq %rax, %r14
+      movq %rcx, %rsi
+      movq $SYS_WRITE, %rax
+      movq -120(%rbp), %rdi
+      syscall
+      addq $NUMERO_STRING_BUFFER, %rsp
+
+      jmp _inc_for1_fprintf
+
+    _normal_caracter_fprintf:
+      incq %r14
+      leaq (%r13, %r12, 1), %rsi
+      movq $SYS_WRITE, %rax
+      movq -120(%rbp), %rdi
+      movq $1, %rdx
+      syscall
+
+    _inc_for1_fprintf:
+
+    incq %r12
+    jmp _for1_fprintf
+  _end_for1_fprintf:
+
+  movq %r14, %rax
+  
+  addq $8, %rsp
+  popq %r14
+  popq %r13
+  popq %r12
+  popq %rbx
+  addq $64, %rsp #desaloca xmm
+  popq %rdi
+  popq %rsi
+  popq %rdx
+  popq %rcx
+  popq %r8
+  popq %r9
+ 
+  popq %rbp
+ret
