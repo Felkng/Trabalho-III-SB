@@ -781,25 +781,32 @@ incq %r9
   call _string_to_int
   movslq %eax, %rax
   movl %eax, (%r8)
-  addq $4, %r8
   jmp _end_handler_scan
 
 _case_scan_c:
 cmp $'c', %bl
 jne _case_scan_s
 incq %r9
-  movq $1, %r12
-  movb (%rdi, %r12, 1), %al
+  movb (%rdi), %al
   movb %al, (%r8)
-  addq $1, %r8
   jmp _end_handler_scan
 
 _case_scan_s:
 cmp $'s', %bl
 jne _case_scan_f
 incq %r9
-  movq %rdi, %r8
-  addq %rsi, %r8
+  movq %rsi, %r12
+  _for_copy_string_to_variable:
+    cmp $0, %r12
+    je _end_for_copy_string_to_variable
+    movb (%rdi), %al
+    movb %al, (%r8)
+    incq %rdi
+    incq %r8
+    decq %r12
+    jmp _for_copy_string_to_variable
+  _end_for_copy_string_to_variable:
+  movb $0, (%r8)
   jmp _end_handler_scan
 
 _case_scan_f:
@@ -829,8 +836,9 @@ _scanf:
   pushq %rbx
   pushq %r12 # input buffer
   pushq %r13 # contador de dados lidos
+  pushq %r14
   pushq %r15
-  movq -40(%rbp), %r8 # (apontador para variáveis)
+  lea -40(%rbp), %r14 # (apontador para variáveis)
   movq -48(%rbp), %r9 # formatador atual
 
   movq %rbp, %r10 # cópia de rbp (CAMISA 10)
@@ -860,21 +868,26 @@ _scanf:
     lea (%r15, %rcx), %r15
     incq %r15
     
+    movq (%r14), %r8
+
     movq %rcx, %rsi
     call _handler_scanf
     addq $MAX_STRING_BUFFER, %rsp #DESALOCA TAMANHO MÁXIMO DE STRING PORQUE AGORA SABE O TAMANHO CERTO
+    
+    addq $8, %r14
 
-    cmp %rbp, %r8
-    jne _still_not_using_stack_scanf
-    movq 16(%rbp), %r8
+    #cmp %rbp, %r8
+    #jne _still_not_using_stack_scanf
+    #movq 16(%rbp), %r8
 
-    _still_not_using_stack_scanf:
+    #_still_not_using_stack_scanf:
 
 
     jmp _for_read_buffer_input
   _end_read_buffer_input:
 
   popq %r15
+  popq %r14
   popq %r13
   popq %r12
   popq %rbx
