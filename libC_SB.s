@@ -1176,3 +1176,97 @@ _fprintf:
  
   popq %rbp
 ret
+
+
+
+_fscanf:
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq %r9 # -8(%rbp)
+  pushq %r8 # -16(%rbp)
+  pushq %rcx # -24(%rbp)
+  pushq %rdx # -32(%rbp)
+  pushq %rsi # -40(%rbp)
+  pushq %rdi # -48(%rbp)
+  subq $MAX_BUFFER_INPUT, %rsp
+  pushq %rbx
+  pushq %r12 # input buffer
+  pushq %r13 # contador de dados lidos
+  pushq %r14
+  pushq %r15
+  lea -32(%rbp), %r14 # (apontador para variáveis)
+  movq -40(%rbp), %r9 # formatador atual
+
+  movq %rbp, %r10 # cópia de rbp (CAMISA 10)
+
+  _read_input_fscanf:
+    movq %rsp, %rsi
+    movq $SYS_READ, %rax
+    movq -48(%rbp), %rdi
+    movq $MAX_BUFFER_INPUT, %rdx
+    syscall
+    movq %rsi, %r12
+    movq %r12, %r15
+  
+  movq $0, %r11 #contador de parâmetros escritos
+  _for_read_buffer_input_fscanf:
+    movq $0, %rax
+    movb (%r15, %rax, 1), %bl
+    cmp $0, %bl
+    je _end_read_buffer_input_fscanf
+
+    movq %r15, %rdi
+    subq $MAX_STRING_BUFFER, %rsp
+    movq %rsp, %rsi
+    call _get_isolated_string
+    movq %rax, %rdi
+    call _get_string_len
+    movq %rax, %rcx
+    lea (%r15, %rcx), %r15
+    _verify_end_of_read_fscanf:
+      movq $0, %rax
+      movb (%r15, %rax, 1), %bl
+      cmp $0, %bl
+      je _is_the_end_of_read_fscanf
+      incq %r15 # se não acabou a leitura passa para a próxima palavra
+
+    _is_the_end_of_read_fscanf:
+    
+    movq (%r14), %r8
+
+    movq %rcx, %rsi
+    call _handler_scanf
+
+    addq $MAX_STRING_BUFFER, %rsp
+    
+    addq $8, %r14
+
+    cmp %rbp, %r14
+    jne _still_not_using_stack_fscanf
+    leaq 16(%rbp), %r14
+
+    _still_not_using_stack_fscanf:
+
+
+    jmp _for_read_buffer_input_fscanf
+  _end_read_buffer_input_fscanf:
+  movq %r11, %rax
+
+  popq %r15
+  popq %r14
+  popq %r13
+  popq %r12
+  popq %rbx
+  addq $MAX_BUFFER_INPUT, %rsp
+  popq %rdi
+  popq %rsi
+  popq %rdx
+  popq %rcx
+  popq %r8
+  popq %r9
+  popq %rbp
+ret
+
+
+
+
