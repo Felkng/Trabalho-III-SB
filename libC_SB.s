@@ -3,12 +3,12 @@
 
 # CHAMADAS DE SISTEMA
 .equ EXIT, 60
-.equ SYS_READ, 0 # ler caracteres / rdi = file descriptor (STDIN é o padrão) / rsi = endereço dos caracteres / rdx = conta os caracteres lidos com sucesso
-.equ SYS_WRITE, 1 # escreve caracteres / rdi = file descriptor (STDOUT é o padrão) / rsi = endereço dos caracteres / rdx = conta os caracteres escritos com sucesso
-.equ SYS_OPEN, 2 # abre o arquivo / rdi = endereço de NULL terminado com o nome do arquivo / rsi = flag de status do arquivo (O_RDONLY é o padrão)
-.equ SYS_CLOSE, 3 # fecha arquivo / rdi = file descriptor
-.equ SYS_CREATE, 85 # abre ou cria arquivo / rdi = endereço de NULL terminado com o nome do arquivo / rsi = flags de modo de arquivo
-.equ SYS_LSEEK, 8 # reposiciona ponteiro para ler/escrever no arquivo / rdi = file descriptor / rsi = offset / rdx = origem
+.equ SYS_READ, 0
+.equ SYS_WRITE, 1
+.equ SYS_OPEN, 2
+.equ SYS_CLOSE, 3
+.equ SYS_CREATE, 85
+.equ SYS_LSEEK, 8
 .equ STDOUT, 1
 .equ STDIN, 0
 
@@ -46,22 +46,6 @@
 .globl _printf
 .globl _scanf
 
-
-
-#parâmetros de func:(SOMENTE APLICADO PARA INTEIROS, STRINGS E CHAR)
-#1º rdi
-#2º rsi, 
-#3º rdx, 
-#4º rcx, 
-#5º r8, 
-#6º r9, 
-#7º+ stack
-
-#parâmetros de float e double:
-#1º xmm0
-#2º xmm1
-#3º xmm2
-#4º xmm3
 
 _get_string_len:
   pushq %rbp
@@ -427,9 +411,9 @@ _printf:
 
       _if4:
         cmp $0, %r8
-        jl _end_if4
+        jle _end_if4
         cmp $-48, %r9
-        je _end_if4
+        jle _end_if4
 
         # verifica qual dos dois é maior e sincroniza o menor com o maior
         cmp %r8, %r9
@@ -1106,7 +1090,7 @@ _fprintf:
 
       _finalize_sinc_fprintf:
         cmp $0, %r8
-        jl _end_finalize_sinc_fprintf
+        jle _end_finalize_sinc_fprintf
         cmp $-48, %r9
         jle _end_finalize_sinc_fprintf
 

@@ -74,13 +74,15 @@ void test_fprintf(char nome_arquivo[]) {
       "%ld\n",
       3.14, 0.0, -15.0, 0.0002, 212.008, 2198323.1, -23484.001,
       "Meu carro rosa", 'M', 0, "Minha carroça", 'l', 100);
-  _printf("Quantidade de caracteres impressos: %d", n);
+  _printf("Quantidade de caracteres impressos: %d\n", n);
   _fclose(arquivo);
+  _printf("Salvo no arquivo: %s", nome_arquivo);
 }
 
 void test_fscanf() {
   _printf("Testes _fscanf:\n");
-  FILE *arquivo = _fopen("felipe-rodrigues-teste-_fscanf.txt", "w");
+  char nome_arquivo[100] = "felipe-rodrigues-teste-_fscanf.txt";
+  FILE *arquivo = _fopen(nome_arquivo, "w");
   _fprintf(arquivo, "%s %c %d %ld %f %lf", "stringuinha", 'L', INT32_MAX,
            LONG_MIN, 9023.2, -983432.123);
   _fclose(arquivo);
@@ -95,8 +97,9 @@ void test_fscanf() {
   _printf(
       "string: %s\nchar: %c\nint: %d\nlong int: %ld\nfloat: %f\ndouble: %lf", a,
       b, c, d, e, f);
-  _printf("\nQuantidade de leituras realizadas: %d", n);
+  _printf("\nQuantidade de leituras realizadas: %d\n", n);
   _fclose(arquivo);
+  _printf("Leu do arquivo: %s", nome_arquivo);
 }
 
 int main() {
